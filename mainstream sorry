@@ -252,6 +252,8 @@ end;
 local notifyClass		= createClass();
 local boardClass 		= createClass();
 local targethudClass	= createClass();
+local watermarkClass	= createClass();
+local keybindListClass	= createClass();
 
 local windowClass       = createClass({
 	index 		= 0;
@@ -653,8 +655,169 @@ targethudClass.new = function(options: table)
 	return targetHUD;
 end;
 
+-- watermarkClass
+watermarkClass.new = function(options: table)
+	local watermark = setmetatable({
+		active = options.active or true;
+		text = options.text or 'synapse.rvs';
+		position = options.position or vector2(10, 10);
+		
+		drawings = {};
+		allDrawings = {};
+	}, watermarkClass);
+	
+	local BASE_ZINDEX = 20;
+	
+	-- drawings
+	do
+		local drawings = watermark.drawings;
+		
+		drawings.text = createDrawing('Text', {
+			Visible = watermark.active;
+			Center = false;
+			Outline = true;
+			Transparency = 1;
+			Size = GLOBAL_SIZE;
+			Font = GLOBAL_FONT;
+			Text = watermark.text;
+			Color = color_rgb(255, 255, 255);
+			OutlineColor = color_rgb(0, 0, 0);
+			Position = watermark.position;
+			ZIndex = BASE_ZINDEX;
+		}, watermark.allDrawings);
+		
+		drawings.background = createDrawing('Square', {
+			Visible = watermark.active;
+			Filled = true;
+			Transparency = 0.5;
+			Color = color_rgb(0, 0, 0);
+			Position = watermark.position - vector2(5, 2);
+			Size = vector2(drawings.text.TextBounds.X + 10, drawings.text.TextBounds.Y + 4);
+			ZIndex = BASE_ZINDEX - 1;
+		}, watermark.allDrawings);
+	end;
+	
+	function watermark:updateText(text)
+		self.text = text;
+		self.drawings.text.Text = text;
+		self.drawings.background.Size = vector2(self.drawings.text.TextBounds.X + 10, self.drawings.text.TextBounds.Y + 4);
+	end;
+	
+	function watermark:setVisible(visible)
+		self.active = visible;
+		for i = 1, #self.allDrawings do
+			self.allDrawings[i].Visible = visible;
+		end;
+	end;
+	
+	function watermark:setColor(color)
+		self.drawings.text.Color = color;
+	end;
+	
+	return watermark;
+end;
 
-
+-- keybindListClass
+keybindListClass.new = function(options: table)
+	local keybindList = setmetatable({
+		active = options.active or true;
+		title = options.title or 'keybinds';
+		position = options.position or vector2(camera.ViewportSize.X - 210, 10);
+		
+		keybinds = {};
+		drawings = {};
+		allDrawings = {};
+	}, keybindListClass);
+	
+	local BASE_ZINDEX = 20;
+	
+	-- drawings
+	do
+		local drawings = keybindList.drawings;
+		
+		drawings.background = createDrawing('Square', {
+			Visible = keybindList.active;
+			Filled = true;
+			Transparency = 0.5;
+			Color = color_rgb(0, 0, 0);
+			Position = keybindList.position;
+			Size = vector2(200, 25);
+			ZIndex = BASE_ZINDEX - 1;
+		}, keybindList.allDrawings);
+		
+		drawings.title = createDrawing('Text', {
+			Visible = keybindList.active;
+			Center = false;
+			Outline = true;
+			Transparency = 1;
+			Size = GLOBAL_SIZE;
+			Font = GLOBAL_FONT;
+			Text = keybindList.title;
+			Color = color_rgb(255, 255, 255);
+			OutlineColor = color_rgb(0, 0, 0);
+			Position = keybindList.position + vector2(5, 5);
+			ZIndex = BASE_ZINDEX;
+		}, keybindList.allDrawings);
+	end;
+	
+	function keybindList:addKeybind(name, key, active)
+		local keybind = {
+			name = name;
+			key = key;
+			active = active or false;
+			text = nil;
+		};
+		
+		keybind.text = createDrawing('Text', {
+			Visible = self.active and keybind.active;
+			Center = false;
+			Outline = true;
+			Transparency = 1;
+			Size = GLOBAL_SIZE;
+			Font = GLOBAL_FONT;
+			Text = `{name} [{key}]`;
+			Color = color_rgb(255, 255, 255);
+			OutlineColor = color_rgb(0, 0, 0);
+			Position = self.position + vector2(5, 25 + #self.keybinds * 18);
+			ZIndex = BASE_ZINDEX;
+		}, self.allDrawings);
+		
+		table_insert(self.keybinds, keybind);
+		self:updateSize();
+		
+		return keybind;
+	end;
+	
+	function keybindList:updateKeybind(keybind, active)
+		keybind.active = active;
+		keybind.text.Visible = self.active and active;
+		self:updateSize();
+	end;
+	
+	function keybindList:updateSize()
+		local activeCount = 0;
+		for i = 1, #self.keybinds do
+			if self.keybinds[i].active then
+				activeCount = activeCount + 1;
+				self.keybinds[i].text.Position = self.position + vector2(5, 25 + (activeCount - 1) * 18);
+			end;
+		end;
+		
+		self.drawings.background.Size = vector2(200, 25 + activeCount * 18);
+	end;
+	
+	function keybindList:setVisible(visible)
+		self.active = visible;
+		self.drawings.background.Visible = visible;
+		self.drawings.title.Visible = visible;
+		
+		for i = 1, #self.keybinds do
+			self.keybinds[i].text.Visible = visible and self.keybinds[i].active;
+		end;
+	end;
+	
+	return keybindList;
+end;
 
 
 windowClass.new = function(options: table)
@@ -2509,4 +2672,6 @@ return {
       windowClass 	= windowClass;
       boardClass  	= boardClass;
 	targethudClass 	= targethudClass;
+	watermarkClass	= watermarkClass;
+	keybindListClass	= keybindListClass;
 }, 5;
