@@ -661,6 +661,7 @@ watermarkClass.new = function(options: table)
 		active = options.active or true;
 		text = options.text or 'synapse.rvs';
 		position = options.position or vector2(10, 10);
+		mouseHeld = false;
 		
 		drawings = {};
 		allDrawings = {};
@@ -672,6 +673,27 @@ watermarkClass.new = function(options: table)
 	do
 		local drawings = watermark.drawings;
 		
+		drawings.base = createDrawing('Square', {
+			Visible = watermark.active;
+			Filled = true;
+			Transparency = 1;
+			Color = color_rgb(39, 39, 39);
+			Position = watermark.position;
+			Size = vector2(200, 25);
+			ZIndex = BASE_ZINDEX;
+		}, watermark.allDrawings);
+		
+		drawings.outline = createDrawing('Square', {
+			Visible = watermark.active;
+			Filled = false;
+			Transparency = 1;
+			Thickness = 1;
+			Color = color_rgb(7, 7, 7);
+			Position = watermark.position - vector2(1, 1);
+			Size = drawings.base.Size + vector2(2, 2);
+			ZIndex = BASE_ZINDEX + 1;
+		}, watermark.allDrawings);
+		
 		drawings.text = createDrawing('Text', {
 			Visible = watermark.active;
 			Center = false;
@@ -680,27 +702,19 @@ watermarkClass.new = function(options: table)
 			Size = GLOBAL_SIZE;
 			Font = GLOBAL_FONT;
 			Text = watermark.text;
-			Color = color_rgb(255, 255, 255);
+			Color = color_rgb(195, 195, 195);
 			OutlineColor = color_rgb(0, 0, 0);
-			Position = watermark.position;
-			ZIndex = BASE_ZINDEX;
-		}, watermark.allDrawings);
-		
-		drawings.background = createDrawing('Square', {
-			Visible = watermark.active;
-			Filled = true;
-			Transparency = 0.5;
-			Color = color_rgb(0, 0, 0);
-			Position = watermark.position - vector2(5, 2);
-			Size = vector2(drawings.text.TextBounds.X + 10, drawings.text.TextBounds.Y + 4);
-			ZIndex = BASE_ZINDEX - 1;
+			Position = watermark.position + vector2(5, 6);
+			ZIndex = BASE_ZINDEX + 2;
 		}, watermark.allDrawings);
 	end;
 	
 	function watermark:updateText(text)
 		self.text = text;
 		self.drawings.text.Text = text;
-		self.drawings.background.Size = vector2(self.drawings.text.TextBounds.X + 10, self.drawings.text.TextBounds.Y + 4);
+		local textBounds = self.drawings.text.TextBounds;
+		self.drawings.base.Size = vector2(textBounds.X + 10, 25);
+		self.drawings.outline.Size = self.drawings.base.Size + vector2(2, 2);
 	end;
 	
 	function watermark:setVisible(visible)
@@ -714,6 +728,52 @@ watermarkClass.new = function(options: table)
 		self.drawings.text.Color = color;
 	end;
 	
+	-- drag functionality
+	do
+		local onDrag = function(mousePosition)
+			watermark.mouseHeld = true;
+			
+			local positions = {};
+			for i = 1, #watermark.allDrawings do
+				positions[i] = watermark.allDrawings[i].Position;
+			end;
+			
+			local connection;
+			connection = runService.RenderStepped:Connect(function()
+				if (not watermark.mouseHeld) then
+					return connection:Disconnect();
+				end;
+				
+				local offset = userInputService:GetMouseLocation() - mousePosition;
+				
+				for i = 1, #positions do
+					watermark.allDrawings[i].Position = positions[i] + offset;
+				end;
+				
+				watermark.position = watermark.drawings.base.Position;
+			end);
+		end;
+		
+		userInputService.InputBegan:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 then
+				local mousePos = userInputService:GetMouseLocation();
+				local basePos = watermark.drawings.base.Position;
+				local baseSize = watermark.drawings.base.Size;
+				
+				if mousePos.X >= basePos.X and mousePos.X <= basePos.X + baseSize.X and
+				   mousePos.Y >= basePos.Y and mousePos.Y <= basePos.Y + baseSize.Y then
+					onDrag(mousePos);
+				end;
+			end;
+		end);
+		
+		userInputService.InputEnded:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 then
+				watermark.mouseHeld = false;
+			end;
+		end);
+	end;
+	
 	return watermark;
 end;
 
@@ -723,6 +783,7 @@ keybindListClass.new = function(options: table)
 		active = options.active or true;
 		title = options.title or 'keybinds';
 		position = options.position or vector2(camera.ViewportSize.X - 210, 10);
+		mouseHeld = false;
 		
 		keybinds = {};
 		drawings = {};
@@ -735,14 +796,25 @@ keybindListClass.new = function(options: table)
 	do
 		local drawings = keybindList.drawings;
 		
-		drawings.background = createDrawing('Square', {
+		drawings.base = createDrawing('Square', {
 			Visible = keybindList.active;
 			Filled = true;
-			Transparency = 0.5;
-			Color = color_rgb(0, 0, 0);
+			Transparency = 1;
+			Color = color_rgb(39, 39, 39);
 			Position = keybindList.position;
 			Size = vector2(200, 25);
-			ZIndex = BASE_ZINDEX - 1;
+			ZIndex = BASE_ZINDEX;
+		}, keybindList.allDrawings);
+		
+		drawings.outline = createDrawing('Square', {
+			Visible = keybindList.active;
+			Filled = false;
+			Transparency = 1;
+			Thickness = 1;
+			Color = color_rgb(7, 7, 7);
+			Position = keybindList.position - vector2(1, 1);
+			Size = drawings.base.Size + vector2(2, 2);
+			ZIndex = BASE_ZINDEX + 1;
 		}, keybindList.allDrawings);
 		
 		drawings.title = createDrawing('Text', {
@@ -753,10 +825,10 @@ keybindListClass.new = function(options: table)
 			Size = GLOBAL_SIZE;
 			Font = GLOBAL_FONT;
 			Text = keybindList.title;
-			Color = color_rgb(255, 255, 255);
+			Color = color_rgb(195, 195, 195);
 			OutlineColor = color_rgb(0, 0, 0);
-			Position = keybindList.position + vector2(5, 5);
-			ZIndex = BASE_ZINDEX;
+			Position = keybindList.position + vector2(5, 6);
+			ZIndex = BASE_ZINDEX + 2;
 		}, keybindList.allDrawings);
 	end;
 	
@@ -776,10 +848,10 @@ keybindListClass.new = function(options: table)
 			Size = GLOBAL_SIZE;
 			Font = GLOBAL_FONT;
 			Text = `{name} [{key}]`;
-			Color = color_rgb(255, 255, 255);
+			Color = color_rgb(195, 195, 195);
 			OutlineColor = color_rgb(0, 0, 0);
 			Position = self.position + vector2(5, 25 + #self.keybinds * 18);
-			ZIndex = BASE_ZINDEX;
+			ZIndex = BASE_ZINDEX + 2;
 		}, self.allDrawings);
 		
 		table_insert(self.keybinds, keybind);
@@ -803,17 +875,74 @@ keybindListClass.new = function(options: table)
 			end;
 		end;
 		
-		self.drawings.background.Size = vector2(200, 25 + activeCount * 18);
+		self.drawings.base.Size = vector2(200, 25 + activeCount * 18);
+		self.drawings.outline.Size = self.drawings.base.Size + vector2(2, 2);
 	end;
 	
 	function keybindList:setVisible(visible)
 		self.active = visible;
-		self.drawings.background.Visible = visible;
-		self.drawings.title.Visible = visible;
+		for i = 1, #self.allDrawings do
+			self.allDrawings[i].Visible = visible;
+		end;
 		
 		for i = 1, #self.keybinds do
 			self.keybinds[i].text.Visible = visible and self.keybinds[i].active;
 		end;
+	end;
+	
+	-- drag functionality
+	do
+		local onDrag = function(mousePosition)
+			keybindList.mouseHeld = true;
+			
+			local positions = {};
+			for i = 1, #keybindList.allDrawings do
+				positions[i] = keybindList.allDrawings[i].Position;
+			end;
+			
+			local keybindPositions = {};
+			for i = 1, #keybindList.keybinds do
+				keybindPositions[i] = keybindList.keybinds[i].text.Position;
+			end;
+			
+			local connection;
+			connection = runService.RenderStepped:Connect(function()
+				if (not keybindList.mouseHeld) then
+					return connection:Disconnect();
+				end;
+				
+				local offset = userInputService:GetMouseLocation() - mousePosition;
+				
+				for i = 1, #positions do
+					keybindList.allDrawings[i].Position = positions[i] + offset;
+				end;
+				
+				for i = 1, #keybindPositions do
+					keybindList.keybinds[i].text.Position = keybindPositions[i] + offset;
+				end;
+				
+				keybindList.position = keybindList.drawings.base.Position;
+			end);
+		end;
+		
+		userInputService.InputBegan:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 then
+				local mousePos = userInputService:GetMouseLocation();
+				local basePos = keybindList.drawings.base.Position;
+				local baseSize = keybindList.drawings.base.Size;
+				
+				if mousePos.X >= basePos.X and mousePos.X <= basePos.X + baseSize.X and
+				   mousePos.Y >= basePos.Y and mousePos.Y <= basePos.Y + baseSize.Y then
+					onDrag(mousePos);
+				end;
+			end;
+		end);
+		
+		userInputService.InputEnded:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 then
+				keybindList.mouseHeld = false;
+			end;
+		end);
 	end;
 	
 	return keybindList;
