@@ -1909,28 +1909,37 @@ keypickerClass.new = function(toggle, options: table)
 		keypicker:update();
 	end;
 	
-	-- Auto-register to GlobalKeybindList
-	if getgenv().GlobalKeybindList then
-		keypicker.keybindEntry = getgenv().GlobalKeybindList:addKeybind(toggle.text, keypicker.value, false);
-		
-		-- Update keybind list when key changes
-		local originalKeyChanged = keypicker.flag.KeyChanged;
-		keypicker.flag.KeyChanged = function(key)
-			originalKeyChanged(key);
-			if keypicker.keybindEntry then
-				getgenv().GlobalKeybindList:updateKey(keypicker.keybindEntry, key);
+	-- Auto-register to GlobalKeybindList (delayed to avoid calling before flag functions are set)
+	task.spawn(function()
+		task.wait(0.1);
+		if getgenv().GlobalKeybindList and getgenv().GlobalKeybindList.addKeybind then
+			keypicker.keybindEntry = getgenv().GlobalKeybindList:addKeybind(toggle.text, keypicker.value, false);
+			
+			-- Store original functions
+			local originalKeyChanged = keypicker.flag.KeyChanged;
+			local originalChanged = keypicker.flag.Changed;
+			
+			-- Override KeyChanged
+			keypicker.flag.KeyChanged = function(key)
+				if originalKeyChanged then
+					originalKeyChanged(key);
+				end;
+				if keypicker.keybindEntry and getgenv().GlobalKeybindList then
+					getgenv().GlobalKeybindList:updateKey(keypicker.keybindEntry, key);
+				end;
+			end;
+			
+			-- Override Changed
+			keypicker.flag.Changed = function(value)
+				if originalChanged then
+					originalChanged(value);
+				end;
+				if keypicker.keybindEntry and getgenv().GlobalKeybindList then
+					getgenv().GlobalKeybindList:updateKeybind(keypicker.keybindEntry, value);
+				end;
 			end;
 		end;
-		
-		-- Update keybind list when toggle changes
-		local originalChanged = keypicker.flag.Changed;
-		keypicker.flag.Changed = function(value)
-			originalChanged(value);
-			if keypicker.keybindEntry then
-				getgenv().GlobalKeybindList:updateKeybind(keypicker.keybindEntry, value);
-			end;
-		end;
-	end;
+	end);
 
 	return keypicker;
 end;
